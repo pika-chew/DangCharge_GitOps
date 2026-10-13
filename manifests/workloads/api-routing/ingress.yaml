@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-routing
+  labels:
+    app.kubernetes.io/name: api-routing
+    app.kubernetes.io/component: routing
+spec:
+  # TODO: 배포된 Traefik의 실제 IngressClass 이름으로 변경.
+  ingressClassName: replace-me-traefik-class
+  rules:
+    # TODO: Cloudflare API hostname과 cloudflared가 전달하는 Host 헤더에 맞춘다.
+    # .invalid는 실제 도메인으로 오인하지 않기 위한 교체 표시다.
+    - host: replace-me-api.invalid
+      http:
+        paths:
+          # TODO: 최종 command 공개 prefix로 변경. 기존 /api/command는 설계안이다.
+          - path: /replace-me-command-prefix
+            pathType: Prefix
+            backend:
+              service:
+                name: command-api
+                port:
+                  name: http
+          # TODO: 최종 query 공개 prefix로 변경. 기존 /api/query는 설계안이다.
+          - path: /replace-me-query-prefix
+            pathType: Prefix
+            backend:
+              service:
+                name: query-api
+                port:
+                  name: http
+
+# Prefix는 경로 매칭 규칙이며 접두어를 제거하거나 URL을 재작성하지 않는다.
+# TODO: 공개 URL과 실제 backend URL을 비교해 유지·StripPrefix·재작성 여부를 확정.
+# 현재 API 명세의 공통 prefix는 /api/v1이며 command/query 분기 prefix와 다르다.
+# StripPrefix로 제거만 하면 /api/v1이 자동으로 추가되지 않으므로 최종 매핑이 필요하다.
+# TODO: Middleware가 필요하면 Traefik 버전·CRD 지원을 확인하고 별도 리소스를 추가.
+# 표준 Ingress는 HTTP 메서드별 backend 분기를 제공하지 않는다.
+# TODO: /api/v1 통합 URL을 선택하면 메서드·경로별 담당 API와 예외를 먼저 정한다.
+# GET을 무조건 query로 보내지 않는다. 이메일 중복 확인 GET은 command 대상일 수 있다.
+# TODO: 관리 API·Actuator 등 외부 공개 범위와 인증·권한·CORS 정책을 확인.
+# TODO: Traefik entrypoint 및 cloudflared origin HTTP/HTTPS 계약을 확인.
+# Kubernetes origin TLS가 필요하면 확정된 인증서 Secret과 tls 설정을 추가한다.
+# Cloudflare edge HTTPS와 Kubernetes origin TLS는 별도 설정이다.
