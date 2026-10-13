@@ -1,0 +1,43 @@
+# 초안: 미확정 값과 Secret 준비 전 root 앱에 연결하거나 수동 Sync하지 않는다.
+# Chart: https://github.com/CloudPirates-io/helm-charts/tree/mongodb-0.20.0/charts/mongodb
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mongodb
+  # TODO: Argo CD Application이 있는 Namespace로 변경.
+  namespace: replace-me-argocd-namespace
+  annotations:
+    # TODO: 설치된 Argo CD 지원 여부 확인 후 계약 확정 시 제거.
+    # alpha 기능이므로 이 설정만 믿지 않고 root 미연결 상태를 유지한다.
+    argocd.argoproj.io/skip-reconcile: "true"
+  # DB 연쇄 삭제를 피하기 위해 resources-finalizer를 추가하지 않는다.
+spec:
+  # TODO: workload 배포를 허용하는 AppProject 이름으로 변경.
+  project: replace-me-workloads-project
+  sources:
+    # Helm OCI source는 oci:// 없이 지정하며 저장소에 enableOCI 설정이 필요하다.
+    # TODO: Argo CD의 OCI 저장소 등록과 AppProject source 허용 확인.
+    - repoURL: registry-1.docker.io/cloudpirates
+      chart: mongodb
+      targetRevision: 0.20.0
+      helm:
+        releaseName: mongodb
+        valueFiles:
+          - $values/helm/mongodb/values.yaml
+    - repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+      # TODO: PR 병합 후 root 앱 추적 브랜치와 맞춘다.
+      targetRevision: feat/k8s-workloads
+      ref: values
+  destination:
+    # TODO: Argo CD와 동일 클러스터인지 확인.
+    server: https://kubernetes.default.svc
+    # TODO: 사전 생성된 workload Namespace로 변경.
+    namespace: replace-me-workloads-namespace
+  # 자동 sync와 auto-prune은 활성화하지 않는다.
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
