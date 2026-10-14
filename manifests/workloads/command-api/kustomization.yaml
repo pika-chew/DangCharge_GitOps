@@ -19,9 +19,9 @@ configMapGenerator:
 images:
   - name: command-api
     # TODO: Docker Hub의 실제 이미지 경로로 변경. 현재 값은 배포용 이미지가 아니다.
-    newName: replace-me-dockerhub-namespace/replace-me-command-api-image
+    newName: ghcr.io/pika-chew/dangcharge-be-producer
     # TODO: 빌드된 이미지의 고정 커밋 태그로 교체하거나 newTag 대신 digest 사용.
     # Jenkins는 이 항목만 갱신하도록 후속 단계에서 연결한다.
-    newTag: replace-me-commit-tag
+    newTag: "f66d00f"
 
 # 초기 API는 1개로 유지한다. HPA 리소스는 포함하지 않는다.
