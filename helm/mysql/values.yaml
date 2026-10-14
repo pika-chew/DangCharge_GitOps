@@ -96,9 +96,8 @@ customConfig: |
   collation-server=utf8mb4_unicode_ci
   default-time-zone=+00:00
 
-# TODO: 스키마 확정 후 초기 SQL ConfigMap 또는 migration 연결.
-# 지금은 빈 업무 DB와 계정만 생성한다. producer의 테이블 검증·쓰기 준비는 미완료다.
-# 이미 초기화된 PVC에서는 init SQL을 추가해도 실행되지 않으므로 별도 migration이 필요하다.
+# 업무 테이블은 Spring의 초기화/migration에서 생성한다. DB Chart는 빈 DB와 계정만 준비한다.
+# TODO: 앱의 테이블 생성 방식과 필요한 DDL 권한 확인.
 extraScripts: ""
 
 customScripts:

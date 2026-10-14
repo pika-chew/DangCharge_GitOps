@@ -90,4 +90,4 @@ spec:
             # TODO: 이미지의 숫자 UID/GID 확인 후 runAsNonRoot 등 실행 권한 설정.
             # 현재 Dockerfile USER app은 숫자 UID가 아니므로 runAsNonRoot만 넣지 않는다.
       # TODO: 비공개 Docker Hub 이미지이면 준비된 imagePullSecrets를 추가.
-      # 최초 스키마는 앱 기동 전에 준비해야 한다. ddl-auto=validate는 테이블을 생성하지 않는다.
+      # TODO: Spring의 테이블 생성 방식 확인. ddl-auto=validate만으로는 생성되지 않는다.

@@ -1,4 +1,4 @@
-# 초안: 이미지·Secret·스키마 확인 전 수동 Sync하지 않는다.
+# 초안: Secret·스토리지·배포 대상 확인 전 수동 Sync하지 않는다.
 # Chart: https://github.com/groundhog2k/helm-charts/releases/tag/mysql-3.0.11
 apiVersion: argoproj.io/v1alpha1
 kind: Application
