@@ -3,7 +3,10 @@ const setName = process.env.MONGODB_REPLICA_SET;
 const service = process.env.MONGODB_HEADLESS_FQDN;
 const username = process.env.MONGODB_ROOT_USERNAME;
 const password = process.env.MONGODB_ROOT_PASSWORD;
-if (!setName || !service || !username || !password) {
+const appUsername = process.env.MONGO_APP_USERNAME;
+const appPassword = process.env.MONGO_APP_PASSWORD;
+const appDatabase = process.env.MONGO_APP_DATABASE;
+if (!setName || !service || !username || !password || !appUsername || !appPassword || !appDatabase) {
   throw new Error("Bootstrap environment is incomplete");
 }
 const hosts = [0, 1, 2].map(i => `mongodb-${i}.${service}:27017`);
@@ -19,7 +22,7 @@ async function connect(host) {
 }
 
 function checked(result, operation) {
-  if (result.ok !== 1) throw new Error(`${operation} failed, code=${result.code ?? "unknown"}`);
+  if (result.ok !== 1 || result.writeConcernError) throw new Error(`${operation} failed, code=${result.code ?? "unknown"}`);
   return result;
 }
 
@@ -64,6 +67,33 @@ async function primary() {
   throw new Error("Primary is not available yet");
 }
 
+async function ensureApplicationUser(leader) {
+  const existing = checked(await leader.runCommand({
+    usersInfo: {user: appUsername, db: appDatabase}, showCredentials: false
+  }), "getAppUser").users;
+  if (existing.length === 0) {
+    const application = await leader.getSiblingDB(appDatabase);
+    checked(await application.runCommand({
+      createUser: appUsername,
+      pwd: appPassword,
+      roles: [{role: "readWrite", db: appDatabase}],
+      writeConcern: {w: "majority", wtimeout: 10000}
+    }), "createAppUser");
+    print("Missing application account created with readWrite role");
+  } else if (existing.length !== 1 || existing[0].roles.length !== 1 ||
+      existing[0].roles[0].role !== "readWrite" || existing[0].roles[0].db !== appDatabase) {
+    throw new ConfigurationError("Unexpected application roles; manual review required");
+  }
+  // Existing users are never password-rotated. Check the Secret on every member.
+  for (const host of hosts) {
+    const connection = await new Mongo(`mongodb://${host}/${appDatabase}?directConnection=true&serverSelectionTimeoutMS=3000&connectTimeoutMS=3000`);
+    const application = await connection.getDB(appDatabase);
+    const authenticated = await application.auth(appUsername, appPassword);
+    if (authenticated !== 1 && authenticated?.ok !== 1) throw new Error("Application authentication failed");
+    checked(await application.runCommand({connectionStatus: 1}), "appAuthentication");
+  }
+}
+
 // --file runs as a script; keep await inside an async function.
 (async function bootstrap() {
   let complete = false;
@@ -82,7 +112,7 @@ async function primary() {
           if (peer.ok === 1) throw new ConfigurationError("Seed is uninitialized but another member already has a configuration");
           if (peer.code !== 94) checked(peer, "checkPeerConfig");
         }
-        // Seed alone first so Pod 0's app account becomes the replicated source.
+        // Seed alone first to keep a deterministic initial data source.
         stage = "seed initialization";
         checked(await seed.runCommand({replSetInitiate: {_id: setName, members: [{_id: 0, host: hosts[0]}]}}), "initiate");
       } else {
@@ -112,7 +142,9 @@ async function primary() {
         if (status.members.length === 3 && status.members.every(member =>
             hosts.includes(member.name) && member.health === 1 && [1, 2].includes(member.state)) &&
             status.members.filter(member => member.state === 1).length === 1) {
-          print("Replica Set ready: one PRIMARY and two SECONDARY data members");
+          stage = "application account and authentication";
+          await ensureApplicationUser(leader);
+          print("Replica Set ready: one PRIMARY and two SECONDARY; application authentication verified on all members");
           complete = true;
           break;
         }
