@@ -1,0 +1,21 @@
+# 업무 프로젝트: 지정 네임스페이스 안의 리소스만 배포할 수 있다.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workloads
+  namespace: argocd
+spec:
+  description: MySQL, MongoDB, command-api, query-api, API 라우팅
+  sourceRepos:
+    - https://github.com/pika-chew/DangCharge_GitOps.git
+    - registry-1.docker.io/bitnamicharts # TODO: MySQL·MongoDB 담당자가 쓰는 차트 저장소로 맞추기
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+  clusterResourceWhitelist: []
+  # 쿼터는 인프라에서 관리하므로 업무 앱이 바꾸지 못하게 막는다.
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange

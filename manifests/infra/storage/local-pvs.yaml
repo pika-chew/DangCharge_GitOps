@@ -1,0 +1,103 @@
+# 노드별 local PV: MySQL 1개, MongoDB 3개
+# 각 노드의 경로는 미리 만들어 두어야 한다 (예: Ansible로 mkdir).
+# claimRef의 PVC 이름은 MySQL·MongoDB Helm values의 릴리스 이름에 따라 달라진다.
+#   TODO: mysql/mongodb 담당자와 PVC 이름 맞추기
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv-0
+spec:
+  capacity:
+    storage: 10Gi # TODO: 용량 확정
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  claimRef:
+    namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+    name: data-mysql-0
+  local:
+    path: /data/mysql # TODO: 실제 디스크 경로 확정
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker-1 # TODO: 실제 노드 이름 확정
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-0
+spec:
+  capacity:
+    storage: 10Gi # TODO: 용량 확정
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  claimRef:
+    namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+    name: datadir-mongodb-0
+  local:
+    path: /data/mongodb # TODO: 실제 디스크 경로 확정
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker-1 # TODO: 실제 노드 이름 확정
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-1
+spec:
+  capacity:
+    storage: 10Gi # TODO: 용량 확정
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  claimRef:
+    namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+    name: datadir-mongodb-1
+  local:
+    path: /data/mongodb # TODO: 실제 디스크 경로 확정
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker-2 # TODO: 실제 노드 이름 확정
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-2
+spec:
+  capacity:
+    storage: 10Gi # TODO: 용량 확정
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  claimRef:
+    namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+    name: datadir-mongodb-2
+  local:
+    path: /data/mongodb # TODO: 실제 디스크 경로 확정
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker-3 # TODO: 실제 노드 이름 확정

@@ -1,0 +1,37 @@
+# 인프라 프로젝트: 플랫폼 구성에 필요한 클러스터 리소스를 허용한다.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infra
+  namespace: argocd
+spec:
+  description: Namespace, ResourceQuota, Storage, Traefik, metrics-server
+  sourceRepos:
+    - https://github.com/pika-chew/DangCharge_GitOps.git
+    - https://traefik.github.io/charts
+    - https://kubernetes-sigs.github.io/metrics-server/
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+    - server: https://kubernetes.default.svc
+      namespace: traefik
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: ""
+      kind: PersistentVolume
+    - group: storage.k8s.io
+      kind: StorageClass
+    # Traefik, metrics-server 차트가 만드는 클러스터 리소스
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: networking.k8s.io
+      kind: IngressClass
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: apiregistration.k8s.io
+      kind: APIService

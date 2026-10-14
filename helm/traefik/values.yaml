@@ -1,0 +1,30 @@
+# https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml
+service:
+  type: NodePort
+
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    # TODO: HTTPS를 쓰게 되면 다시 열기
+    expose:
+      default: false
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+providers:
+  kubernetesIngress:
+    enabled: true
+  kubernetesCRD:
+    enabled: true
+
+# TODO: 노드 사양에 맞춰 조정
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

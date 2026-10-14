@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: infra
+  sources:
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: 37.1.1 # TODO: 차트 버전 확정
+      helm:
+        valueFiles:
+          - $values/helm/traefik/values.yaml
+    - repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Traefik CRD는 크기가 커서 client-side apply의 annotation 한도를 넘는다.
+      - ServerSideApply=true

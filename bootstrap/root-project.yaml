@@ -1,0 +1,17 @@
+# root 앱 전용 프로젝트: argocd 네임스페이스에 Application만 생성할 수 있다.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  description: apps/ 아래의 Argo CD Application만 관리
+  sourceRepos:
+    - https://github.com/pika-chew/DangCharge_GitOps.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: argoproj.io
+      kind: Application
