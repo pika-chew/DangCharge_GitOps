@@ -1,14 +1,10 @@
-# 초안: Secret·스토리지·배포 대상 확인 전 수동 Sync하지 않는다.
+# Namespace·PV·Secret 준비 후 MySQL을 수동 동기화한다.
 # Chart: https://github.com/groundhog2k/helm-charts/releases/tag/mysql-3.0.11
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: mysql
   namespace: argocd
-  annotations:
-    # TODO: 설치된 Argo CD 지원과 배포 준비 확인 후 제거.
-    # root는 이 Application을 읽는다. 자동 sync는 별도로 활성화하지 않는다.
-    argocd.argoproj.io/skip-reconcile: "true"
   # 삭제 시 DB를 연쇄 삭제하는 resources-finalizer를 의도적으로 넣지 않는다.
 spec:
   project: workloads
@@ -25,7 +21,6 @@ spec:
       targetRevision: main
       ref: values
   destination:
-    # TODO: Argo CD와 동일 클러스터인지 확인
     server: https://kubernetes.default.svc
     namespace: dangcharge
   # 자동 sync와 auto-prune을 활성화하지 않는다.
