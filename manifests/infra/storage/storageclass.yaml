@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+# Pod가 스케줄된 뒤에 PV를 바인딩해 노드 배치와 PV 위치를 맞춘다.
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain

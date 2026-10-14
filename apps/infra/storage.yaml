@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: infra
+  source:
+    repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+    targetRevision: main
+    path: manifests/infra/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
+  syncPolicy:
+    automated:
+      # PV는 데이터를 담고 있으므로 Git에서 지워도 자동 삭제하지 않는다.
+      prune: false
+      selfHeal: true

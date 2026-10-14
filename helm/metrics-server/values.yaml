@@ -1,0 +1,11 @@
+# https://github.com/kubernetes-sigs/metrics-server/blob/master/charts/metrics-server/values.yaml
+args:
+  # kubelet 인증서가 자체 서명이면 필요하다 (kubeadm 기본 설치).
+  # TODO: kubelet 인증서를 정식으로 발급하면 제거
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
