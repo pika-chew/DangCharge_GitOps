@@ -41,6 +41,21 @@ spec:
                 secretKeyRef:
                   name: mongodb-root
                   key: MONGO_INITDB_ROOT_PASSWORD
+            - name: MONGO_APP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-app
+                  key: MONGO_APP_USERNAME
+            - name: MONGO_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-app
+                  key: MONGO_APP_PASSWORD
+            - name: MONGO_APP_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-app
+                  key: MONGO_APP_DATABASE
             - name: MONGODB_REPLICA_SET
               value: rs0
             - name: MONGODB_HEADLESS_FQDN
