@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: infra
+  sources:
+    - repoURL: https://metallb.github.io/metallb
+      chart: metallb
+      targetRevision: 0.16.1
+      helm:
+        valueFiles:
+          - $values/helm/metallb/values.yaml
+    - repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    # Sync manually, then verify CRDs and the webhook before adding VIP configuration.
+    syncOptions:
+      - ServerSideApply=true
