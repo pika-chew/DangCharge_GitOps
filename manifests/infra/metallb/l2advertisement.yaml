@@ -1,0 +1,17 @@
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: traefik-vip
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - traefik-vip
+  # These workers have 10.10.0.50 in their Neutron allowed address pairs.
+  nodeSelectors:
+    - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+            - worker-1
+            - worker-2
+            - worker-3

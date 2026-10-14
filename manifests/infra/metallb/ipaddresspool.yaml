@@ -1,0 +1,17 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: traefik-vip
+  namespace: metallb-system
+spec:
+  # Reserved by the unbound Neutron port k8s-metallb-vip-port.
+  addresses:
+    - 10.10.0.50/32
+  # Existing LoadBalancer Services must not claim this address automatically.
+  autoAssign: false
+  serviceAllocation:
+    namespaces:
+      - traefik
+    serviceSelectors:
+      - matchLabels:
+          app.kubernetes.io/name: traefik
