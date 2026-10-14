@@ -64,63 +64,73 @@ async function primary() {
   throw new Error("Primary is not available yet");
 }
 
-let complete = false;
-for (let attempt = 1; attempt <= 120; attempt++) {
-  let stage = "seed connection";
-  try {
-    const seed = await connect(hosts[0]);
-    stage = "seed configuration";
-    const existing = await getConfig(seed);
-    if (existing.ok === 1) {
-      validate(existing.config);
-    } else if (existing.code === 94) {
-      for (const host of hosts.slice(1)) {
-        stage = "peer configuration";
-        const peer = await getConfig(await connect(host));
-        if (peer.ok === 1) throw new ConfigurationError("Seed is uninitialized but another member already has a configuration");
-        if (peer.code !== 94) checked(peer, "checkPeerConfig");
+// --file runs as a script; keep await inside an async function.
+(async function bootstrap() {
+  let complete = false;
+  for (let attempt = 1; attempt <= 120; attempt++) {
+    let stage = "seed connection";
+    try {
+      const seed = await connect(hosts[0]);
+      stage = "seed configuration";
+      const existing = await getConfig(seed);
+      if (existing.ok === 1) {
+        validate(existing.config);
+      } else if (existing.code === 94) {
+        for (const host of hosts.slice(1)) {
+          stage = "peer configuration";
+          const peer = await getConfig(await connect(host));
+          if (peer.ok === 1) throw new ConfigurationError("Seed is uninitialized but another member already has a configuration");
+          if (peer.code !== 94) checked(peer, "checkPeerConfig");
+        }
+        // Seed alone first so Pod 0's app account becomes the replicated source.
+        stage = "seed initialization";
+        checked(await seed.runCommand({replSetInitiate: {_id: setName, members: [{_id: 0, host: hosts[0]}]}}), "initiate");
+      } else {
+        checked(existing, "getConfig");
       }
-      // Seed alone first so Pod 0's app account becomes the replicated source.
-      stage = "seed initialization";
-      checked(await seed.runCommand({replSetInitiate: {_id: setName, members: [{_id: 0, host: hosts[0]}]}}), "initiate");
-    } else {
-      checked(existing, "getConfig");
-    }
 
-    stage = "primary discovery";
-    const leader = await primary();
-    stage = "primary configuration";
-    const config = checked(await getConfig(leader), "getConfig").config;
-    validate(config);
-    const missing = hosts.find(host => !config.members.some(member => member.host === host));
-    if (missing) {
-      stage = "member readiness";
-      const current = checked(await leader.runCommand({replSetGetStatus: 1}), "getStatus");
-      if (!current.members.every(member => member.health === 1 && [1, 2].includes(member.state))) {
-        throw new Error("Existing members are still synchronizing");
+      stage = "primary discovery";
+      const leader = await primary();
+      stage = "primary configuration";
+      const config = checked(await getConfig(leader), "getConfig").config;
+      validate(config);
+      const missing = hosts.find(host => !config.members.some(member => member.host === host));
+      if (missing) {
+        stage = "member readiness";
+        const current = checked(await leader.runCommand({replSetGetStatus: 1}), "getStatus");
+        if (!current.members.every(member => member.health === 1 && [1, 2].includes(member.state))) {
+          throw new Error("Existing members are still synchronizing");
+        }
+        config.version++;
+        config.members.push({_id: hosts.indexOf(missing), host: missing, votes: 1, priority: 1});
+        // One voting member at a time; never use force during membership changes.
+        stage = "member addition";
+        checked(await leader.runCommand({replSetReconfig: config, maxTimeMS: 10000}), "addMember");
+      } else {
+        stage = "final readiness";
+        const status = checked(await leader.runCommand({replSetGetStatus: 1}), "getStatus");
+        if (status.members.length === 3 && status.members.every(member =>
+            hosts.includes(member.name) && member.health === 1 && [1, 2].includes(member.state)) &&
+            status.members.filter(member => member.state === 1).length === 1) {
+          print("Replica Set ready: one PRIMARY and two SECONDARY data members");
+          complete = true;
+          break;
+        }
       }
-      config.version++;
-      config.members.push({_id: hosts.indexOf(missing), host: missing, votes: 1, priority: 1});
-      // One voting member at a time; never use force during membership changes.
-      stage = "member addition";
-      checked(await leader.runCommand({replSetReconfig: config, maxTimeMS: 10000}), "addMember");
-    } else {
-      stage = "final readiness";
-      const status = checked(await leader.runCommand({replSetGetStatus: 1}), "getStatus");
-      if (status.members.length === 3 && status.members.every(member =>
-          hosts.includes(member.name) && member.health === 1 && [1, 2].includes(member.state)) &&
-          status.members.filter(member => member.state === 1).length === 1) {
-        print("Replica Set ready: one PRIMARY and two SECONDARY data members");
-        complete = true;
-        break;
-      }
+    } catch (error) {
+      if (error instanceof ConfigurationError) throw error;
+      // Report only fixed stage names and numeric codes, never raw connection errors.
+      const code = Number.isInteger(error.code) ? error.code : "unavailable";
+      print(`Waiting for Replica Set readiness, attempt ${attempt}/120, stage=${stage}, code=${code}`);
     }
-  } catch (error) {
-    if (error instanceof ConfigurationError) throw error;
-    // Report only fixed stage names and numeric codes, never raw connection errors.
-    const code = Number.isInteger(error.code) ? error.code : "unavailable";
-    print(`Waiting for Replica Set readiness, attempt ${attempt}/120, stage=${stage}, code=${code}`);
+    await sleep(5000);
   }
-  await sleep(5000);
-}
-if (!complete) throw new Error("Replica Set bootstrap timed out; inspect pods without deleting PVCs");
+  if (!complete) throw new Error("Replica Set bootstrap timed out; inspect pods without deleting PVCs");
+})().catch(error => {
+  const code = Number.isInteger(error.code) ? error.code : "unavailable";
+  const reason = error instanceof ConfigurationError
+    ? error.message
+    : "Bootstrap failed; inspect stage/code logs without deleting PVCs";
+  print(`${reason}, code=${code}`);
+  quit(1);
+});
