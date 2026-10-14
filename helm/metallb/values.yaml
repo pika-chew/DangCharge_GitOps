@@ -1,0 +1,27 @@
+# L2 advertisements do not need either FRR backend.
+frrk8s:
+  enabled: false
+
+controller:
+  enabled: true
+
+speaker:
+  enabled: true
+  tolerateMaster: false
+  frr:
+    enabled: false
+  memberlist:
+    enabled: true
+    mlBindPort: 7946
+  # Only these workers have the VIP allowed on their Neutron ports.
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - worker-1
+                  - worker-2
+                  - worker-3

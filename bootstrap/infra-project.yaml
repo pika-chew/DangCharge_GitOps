@@ -5,11 +5,12 @@ metadata:
   name: infra
   namespace: argocd
 spec:
-  description: Namespace, ResourceQuota, Storage, Traefik, metrics-server
+  description: Namespace, ResourceQuota, Storage, Traefik, metrics-server, MetalLB
   sourceRepos:
     - https://github.com/pika-chew/DangCharge_GitOps.git
     - https://traefik.github.io/charts
     - https://kubernetes-sigs.github.io/metrics-server/
+    - https://metallb.github.io/metallb
   destinations:
     - server: https://kubernetes.default.svc
       namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
@@ -17,6 +18,8 @@ spec:
       namespace: traefik
     - server: https://kubernetes.default.svc
       namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: metallb-system
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -35,3 +38,6 @@ spec:
       kind: CustomResourceDefinition
     - group: apiregistration.k8s.io
       kind: APIService
+    # MetalLB validates its configuration through an admission webhook.
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
