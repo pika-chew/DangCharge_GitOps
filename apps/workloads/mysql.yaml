@@ -1,19 +1,17 @@
-# 초안: 계약 확정 전 root Application에 연결하거나 수동 Sync하지 않는다.
+# 초안: 이미지·Secret·스키마 확인 전 수동 Sync하지 않는다.
 # Chart: https://github.com/groundhog2k/helm-charts/releases/tag/mysql-3.0.11
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: mysql
-  # TODO: Argo CD Application이 있는 Namespace로 변경
-  namespace: replace-me-argocd-namespace
+  namespace: argocd
   annotations:
-    # TODO: 설치된 Argo CD에서 지원 확인 후 확정 시 제거
-    # skip-reconcile은 alpha 기능이며, 실제 배포 차단은 root 미연결로 유지한다.
+    # TODO: 설치된 Argo CD 지원과 배포 준비 확인 후 제거.
+    # root는 이 Application을 읽는다. 자동 sync는 별도로 활성화하지 않는다.
     argocd.argoproj.io/skip-reconcile: "true"
   # 삭제 시 DB를 연쇄 삭제하는 resources-finalizer를 의도적으로 넣지 않는다.
 spec:
-  # TODO: workload 배포를 허용하는 AppProject 이름
-  project: replace-me-workloads-project
+  project: workloads
   sources:
     - repoURL: https://groundhog2k.github.io/helm-charts/
       chart: mysql
@@ -23,14 +21,13 @@ spec:
         valueFiles:
           - $values/helm/mysql/values.yaml
     - repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
-      # TODO: PR 병합 후 root 앱 추적 브랜치와 맞춘다
-      targetRevision: feat/k8s-workloads
+      # 변경사항은 main 병합 후 반영된다.
+      targetRevision: main
       ref: values
   destination:
     # TODO: Argo CD와 동일 클러스터인지 확인
     server: https://kubernetes.default.svc
-    # TODO: 기존 Namespace 사용. 자동 생성하지 않는다.
-    namespace: replace-me-workloads-namespace
+    namespace: dangcharge
   # 자동 sync와 auto-prune을 활성화하지 않는다.
   syncPolicy:
     retry:

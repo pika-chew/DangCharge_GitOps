@@ -22,11 +22,10 @@ service:
   # 이 Service만으로 클러스터 밖 Kafka VM 접속은 제공되지 않는다.
 
 storage:
-  volumeName: db-volume
-  # TODO: 20Gi는 제안값. 데이터·binlog 용량과 local PV 크기 확인.
-  requestedSize: 20Gi
-  # TODO: local PV에 연결하는 실제 StorageClass 이름.
-  className: replace-me-mysql-storage-class
+  # StatefulSet mysql의 PVC 이름을 local PV 예약 data-mysql-0과 맞춘다.
+  volumeName: data
+  requestedSize: 10Gi
+  className: local-storage
   accessModes:
     - ReadWriteOnce
   persistentVolumeClaimRetentionPolicy:
@@ -82,7 +81,7 @@ customConfig: |
   binlog-format=ROW
   binlog-row-image=FULL
   binlog-row-value-options=
-  # TODO: 7일 제안값. CDC 최대 중단 시간과 20Gi 디스크 용량에 맞춘다.
+  # TODO: 7일 제안값. CDC 최대 중단 시간과 10Gi 디스크 용량에 맞춘다.
   binlog-expire-logs-seconds=604800
   max-binlog-size=104857600
   # 트랜잭션·binlog 내구성 설정. 물리 호스트 장애 복구를 보장하지 않는다.

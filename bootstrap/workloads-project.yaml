@@ -8,7 +8,8 @@ spec:
   description: MySQL, MongoDB, command-api, query-api, API 라우팅
   sourceRepos:
     - https://github.com/pika-chew/DangCharge_GitOps.git
-    - registry-1.docker.io/bitnamicharts # TODO: MySQL·MongoDB 담당자가 쓰는 차트 저장소로 맞추기
+    - registry-1.docker.io/bitnamicharts
+    - https://groundhog2k.github.io/helm-charts/
   destinations:
     - server: https://kubernetes.default.svc
       namespace: dangcharge # TODO: 업무 네임스페이스 이름 확정
