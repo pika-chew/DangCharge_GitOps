@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# TODO: 두 API Service와 Application destination의 Namespace를 함께 변경.
+namespace: replace-me-workloads-namespace
+
+resources:
+  - ingress.yaml
+
+# Traefik 설치·NodePort·cloudflared 연결은 이 묶음에서 생성하지 않는다.

@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# TODO: Application destination 및 DB Namespace와 함께 확정.
+namespace: replace-me-workloads-namespace
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# 주소 설정은 ConfigMap, 비밀번호는 기존 Secret 참조로 분리한다.
+# TODO: 자격증명이 포함되지 않은 실제 JDBC URL로 교체.
+# 현재 replace-me 값은 JDBC URL이 아니므로 앱 기동이 불가능한 초안이다.
+configMapGenerator:
+  - name: command-api-config
+    literals:
+      - DB_URL=replace-me-jdbc-url
+# 기본 이름 hash를 유지해 설정 변경 시 Pod template 참조도 변경되게 한다.
+
+images:
+  - name: command-api
+    # TODO: Docker Hub의 실제 이미지 경로로 변경. 현재 값은 배포용 이미지가 아니다.
+    newName: replace-me-dockerhub-namespace/replace-me-command-api-image
+    # TODO: 빌드된 이미지의 고정 커밋 태그로 교체하거나 newTag 대신 digest 사용.
+    # Jenkins는 이 항목만 갱신하도록 후속 단계에서 연결한다.
+    newTag: replace-me-commit-tag
+
+# 초기 API는 1개로 유지한다. HPA 리소스는 포함하지 않는다.

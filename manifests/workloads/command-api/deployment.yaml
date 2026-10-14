@@ -1,0 +1,94 @@
+# 확인 코드: producer develop 90aa99c65f44bebfef7b9f0161d6902b2b42eeb3
+# Spring Boot + Java 17, Dockerfile EXPOSE 8080, DB_URL/DB_USERNAME/DB_PASSWORD.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: command-api
+  labels:
+    app.kubernetes.io/name: command-api
+    app.kubernetes.io/component: producer
+spec:
+  replicas: 1
+  # 초기 1개 운용에서 업데이트 시 기존·새 Pod 동시 실행을 피한다.
+  # TODO: 무중단 요구와 동시 실행 허용 여부 확인. 현재 재배포 중 서비스 중단이 발생한다.
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  # TODO: 실제 DB 연결·앱 시작 시간을 측정해 조정. 실패 시 자동 rollback은 하지 않는다.
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: command-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: command-api
+        app.kubernetes.io/component: producer
+    spec:
+      # 앱에서 Kubernetes API를 사용하지 않으므로 토큰 자동 마운트를 끈다.
+      automountServiceAccountToken: false
+      # TODO: graceful shutdown과 진행 중 요청 처리 시간을 확인해 조정.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: producer
+          # Kustomize images에서 실제 경로와 태그 또는 digest로 교체한다.
+          image: command-api:replace-me-commit-tag
+          imagePullPolicy: IfNotPresent
+          # 실행 명령은 이미지 ENTRYPOINT(java -jar /app/app.jar)를 사용한다.
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Spring Boot 실행 포트를 Service와 맞춘다. 실제 이미지 기동으로 확인해야 한다.
+            - name: SERVER_PORT
+              value: "8080"
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: command-api-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  # TODO: MySQL userDatabase.existingSecret과 동일한 Secret 이름.
+                  name: replace-me-mysql-app-secret
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: replace-me-mysql-app-secret
+                  key: MYSQL_PASSWORD
+          # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
+          # Kafka 직접 발행용 환경 변수는 추가하지 않는다. CDC는 외부 Debezium이 담당한다.
+          # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # TODO: 앱 생존 검사 endpoint 확정 후 livenessProbe 추가.
+          # DB 일시 장애를 liveness 실패로 연결하면 불필요한 재시작이 반복될 수 있다.
+          resources:
+            # TODO: 제안값. Java heap·native memory·실측 부하·Quota에 맞춰 조정.
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            # TODO: 이미지의 숫자 UID/GID 확인 후 runAsNonRoot 등 실행 권한 설정.
+            # 현재 Dockerfile USER app은 숫자 UID가 아니므로 runAsNonRoot만 넣지 않는다.
+      # TODO: 비공개 Docker Hub 이미지이면 준비된 imagePullSecrets를 추가.
+      # 최초 스키마는 앱 기동 전에 준비해야 한다. ddl-auto=validate는 테이블을 생성하지 않는다.
