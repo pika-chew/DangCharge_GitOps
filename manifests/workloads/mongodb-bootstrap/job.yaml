@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongodb-bootstrap
+  annotations:
+    # 서버 기동 후 구성한다. 다음 Sync에서는 기존 Job을 교체해 상태를 다시 확인한다.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: bootstrap
+          image: docker.io/mongo:8.0.26@sha256:3ce3de7f40e914034b03b7dec654005ab54f7dc8306937e44ec6760d9e9409a1
+          command:
+            - mongosh
+            - --nodb
+            - --quiet
+            - --file
+            - /bootstrap/initialize.js
+          env:
+            - name: HOME
+              value: /tmp
+            - name: MONGODB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-root
+                  key: MONGO_INITDB_ROOT_USERNAME
+            - name: MONGODB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-root
+                  key: MONGO_INITDB_ROOT_PASSWORD
+            - name: MONGODB_REPLICA_SET
+              value: rs0
+            - name: MONGODB_HEADLESS_FQDN
+              # TODO: 실제 cluster domain을 values.yaml·Secret URI와 맞춘다.
+              value: mongodb-headless.dangcharge.svc.cluster.local
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: mongodb-bootstrap
+        - name: tmp
+          emptyDir: {}

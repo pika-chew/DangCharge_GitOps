@@ -24,6 +24,7 @@ spec:
       # 변경사항은 main 병합 후 반영된다.
       targetRevision: main
       ref: values
+      path: manifests/workloads/mongodb-bootstrap
   destination:
     server: https://kubernetes.default.svc
     namespace: dangcharge
