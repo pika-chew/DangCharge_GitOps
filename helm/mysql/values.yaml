@@ -35,17 +35,17 @@ storage:
   # local PV 노드 장애 시 단일 MySQL이 중단된다. 별도 백업·복구 계획 필요.
 
 settings:
-  # TODO: 같은 Namespace에 사전 공급할 root Secret 이름.
-  existingSecret: replace-me-mysql-root-secret
+  # 배포 전 scripts/mysql/create-secrets.sh로 같은 Namespace에 공급한다.
+  existingSecret: mysql-root
   rootPassword:
     secretKey: MYSQL_ROOT_PASSWORD
   allowEmptyRootPassword: false
 
 userDatabase:
-  # TODO: DB 이름·앱 계정·암호 Secret 이름과 키 확정.
+  # TODO: 실제 DB 이름과 앱 계정을 확정해 Secret 공급 시 입력.
   # 값은 Git에 넣지 않는다. 공식 entrypoint가 DB와 앱 계정을 최초 생성한다.
   # 이 방식은 앱 계정에 해당 DB의 ALL 권한을 부여하므로 최소 권한 조정도 필요하다.
-  existingSecret: replace-me-mysql-app-secret
+  existingSecret: mysql-app
   name:
     secretKey: MYSQL_DATABASE
   user:
@@ -57,19 +57,22 @@ env:
   - name: MYSQL_CDC_USERNAME
     valueFrom:
       secretKeyRef:
-        name: replace-me-mysql-cdc-secret
+        name: mysql-cdc
         key: MYSQL_CDC_USERNAME
+        optional: true
   - name: MYSQL_CDC_PASSWORD
     valueFrom:
       secretKeyRef:
-        name: replace-me-mysql-cdc-secret
+        name: mysql-cdc
         key: MYSQL_CDC_PASSWORD
+        optional: true
   - name: MYSQL_CDC_HOST
     valueFrom:
       secretKeyRef:
-        name: replace-me-mysql-cdc-secret
+        name: mysql-cdc
         key: MYSQL_CDC_HOST
-  # TODO: CDC Secret 이름·키를 확정한다.
+        optional: true
+  # TODO: 사설 접속 경로 확정 후 mysql-cdc Secret 공급과 계정 생성.
   # MYSQL_CDC_HOST는 MySQL에서 실제 보이는 접속 출발지 IP다. SNAT 여부 확인.
   # '%'로 열지 않는다. 방화벽 제한과 TLS는 별도로 설정해야 한다.
 
@@ -93,11 +96,10 @@ customConfig: |
   collation-server=utf8mb4_unicode_ci
   default-time-zone=+00:00
 
-# TODO: 합의된 최초 스키마를 가진 ConfigMap으로 변경.
-# producer ddl-auto=validate이므로 DB 이름 생성만으로 API가 준비되지 않는다.
-# 이 ConfigMap은 아직 작성하지 않았다. 존재하지 않으면 Pod 기동을 막는다.
-# 최초 스키마는 빈 datadir에서만 실행된다. 이후 변경은 별도 migration으로 수행한다.
-extraScripts: replace-me-mysql-schema-configmap
+# TODO: 스키마 확정 후 초기 SQL ConfigMap 또는 migration 연결.
+# 지금은 빈 업무 DB와 계정만 생성한다. producer의 테이블 검증·쓰기 준비는 미완료다.
+# 이미 초기화된 PVC에서는 init SQL을 추가해도 실행되지 않으므로 별도 migration이 필요하다.
+extraScripts: ""
 
 customScripts:
   90-create-cdc-user.sh: |
@@ -105,6 +107,12 @@ customScripts:
     set -euo pipefail
     # 공식 entrypoint가 빈 datadir를 초기화할 때만 실행한다.
     # 기존 PVC에서는 Secret 변경으로 계정·비밀번호가 갱신되지 않는다.
+    if [[ -z "${MYSQL_CDC_USERNAME:-}" && -z "${MYSQL_CDC_PASSWORD:-}" && -z "${MYSQL_CDC_HOST:-}" ]]; then
+      printf '%s\n' 'CDC Secret not supplied; account creation deferred.'
+      exit 0
+    fi
+    # Secret 일부만 공급되면 초기화 실패로 알린다. 값을 로그에 출력하지 않는다.
+    # TODO: 기존 DB에 나중에 Secret을 공급하면 별도 SQL로 CDC 계정을 생성.
     : "${MYSQL_ROOT_PASSWORD:?root Secret required}"
     : "${MYSQL_DATABASE:?application database required}"
     : "${MYSQL_USER:?application user required}"

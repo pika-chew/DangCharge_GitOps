@@ -50,13 +50,12 @@ spec:
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  # TODO: MySQL userDatabase.existingSecret과 동일한 Secret 이름.
-                  name: replace-me-mysql-app-secret
+                  name: mysql-app
                   key: MYSQL_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: replace-me-mysql-app-secret
+                  name: mysql-app
                   key: MYSQL_PASSWORD
           # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
           # Kafka 직접 발행용 환경 변수는 추가하지 않는다. CDC는 외부 Debezium이 담당한다.
