@@ -1,84 +1,63 @@
-# CloudPirates mongodb 0.20.0 전용 검토 초안. 실제 배포 전 TODO를 확정한다.
-# 공식 이미지: https://hub.docker.com/_/mongo
+# groundhog2k/mongodb 0.8.3 전용 검토 초안. 실제 동기화는 준비 검증 후 진행한다.
+# 공식 MongoDB 이미지와 digest를 고정한다.
 fullnameOverride: mongodb
-
 image:
+  # TODO: VM의 AVX와 앱 드라이버 호환성 확인.
   registry: docker.io
   repository: mongo
-  # Chart 기본 이미지 대신 조회한 MongoDB 8.0 이미지와 digest를 고정한다.
-  # TODO: 최종 MongoDB 버전과 앱 드라이버 호환성 확인.
-  # TODO: VM에 MongoDB가 요구하는 CPU 명령어가 노출되는지 확인.
-  tag: "8.0.26@sha256:3ce3de7f40e914034b03b7dec654005ab54f7dc8306937e44ec6760d9e9409a1"
+  tag: 8.0.26@sha256:3ce3de7f40e914034b03b7dec654005ab54f7dc8306937e44ec6760d9e9409a1
   pullPolicy: IfNotPresent
-
-commonAnnotations:
-  # 이 annotation을 적용하는 StatefulSet·ConfigMap을 보존한다. 백업은 별도다.
-  # headless Service에는 Chart가 이 annotation을 붙이지 않는다.
+customAnnotations:
+  # StatefulSet 보존 정책이다. Namespace 보호와 별도 백업도 필요하다.
   argocd.argoproj.io/sync-options: Prune=false,Delete=false
-
-# 전체 재시작 시 멤버들이 함께 올라와 과반수를 회복할 수 있게 한다.
-# Chart 초기화 로직은 Pod 0만 rs.initiate 하고 나머지는 합류시킨다.
-podManagementPolicy: Parallel
+# 첫 Pod의 초기화 후 다음 멤버를 시작한다. 동시 초기화 경쟁을 피한다.
+# TODO: 첫 RS 초기화·전체 재기동 시 차트 초기화의 DNS/primary 탐색을 검증.
+podManagementPolicy: OrderedReady
 updateStrategyType: RollingUpdate
-# TODO: 실제 종료·선출 시간을 측정해서 조정. 차트의 종료 지연 10초 포함.
-terminationGracePeriodSeconds: 60
-
 replicaSet:
   enabled: true
-  # TODO: 앱의 URI에서 사용할 Replica Set 이름과 맞춘다.
   name: rs0
-  # 이 Chart의 Pod 수는 1 + secondaries다. 데이터 멤버 3개를 만든다.
   secondaries: 2
   arbiter:
     enabled: false
   hiddenSecondaries:
     instances: 0
-  # TODO: 같은 Namespace에 공유 멤버 인증키 Secret을 공급한다.
-  # Secret의 keyfile 항목 내용은 6~1024자의 Base64 문자 문자열이어야 한다.
-  # Secret data의 Base64 인코딩과 keyfile 내용의 Base64 문자는 별개다.
+  # TODO: 같은 Namespace에 공유 keyfile Secret 공급.
   keySecretName: replace-me-mongodb-keyfile-secret
-  # TODO: 실제 Kubernetes cluster domain 확인.
+  # TODO: 실제 CoreDNS cluster domain 확인.
   clusterDomain: cluster.local
   extraInit:
-    # TODO: 실제 초기화 시간에 맞춰 조정. 프로세스 감지 후 RS 초기화는 별도다.
     retries: 60
     delay: 5
     initDelay: 5
-  externalAccess:
-    enabled: false
-
-shardedCluster:
-  enabled: false
-
+  # TODO: 기본 Pod 종료 유예와 실제 primary 선출 시간을 확인.
+  shutdown:
+    delay: 10
 service:
   type: ClusterIP
   port: 27017
   headlessServiceSuffix: headless
-  # Replica Set 모드에서는 mongodb-headless Service로 멤버 DNS를 제공한다.
-  # TODO: 앱 URI에 세 멤버 DNS, replicaSet=rs0, authSource를 함께 반영.
-  # 단일 ClusterIP 주소가 현재 primary를 찾아 주는 것으로 가정하지 않는다.
-
-persistence:
-  enabled: true
-  # TODO: 독립 local PV 3개에 연결할 실제 StorageClass 이름.
-  storageClass: replace-me-mongodb-storage-class
-  # TODO: 멤버당 20Gi 제안값. 데이터·oplog·인덱스 용량에 맞춰 조정.
-  size: 20Gi
-  accessMode: ReadWriteOnce
-  # 공유 기존 PVC를 쓰지 않고 각 Pod의 PVC를 생성한다.
-  existingClaim: ""
+storage:
+  # 인프라에 예약한 datadir-mongodb-0/1/2 이름을 유지한다.
+  volumeName: datadir
+  requestedSize: 10Gi
+  className: local-storage
+  accessModes:
+    - ReadWriteOnce
   persistentVolumeClaimRetentionPolicy:
     whenDeleted: Retain
     whenScaled: Retain
-  # TODO: PV reclaimPolicy=Retain, 노드별 배치와 UID/GID 999 접근 확인.
-  # 복제는 백업이 아니다. 백업·복구 위치와 절차를 준비해야 한다.
-
 affinity:
-  # TODO: 실제 worker label 확인. control plane에는 배치하지 않는다.
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker-1
+                - worker-2
+                - worker-3
             - key: node-role.kubernetes.io/control-plane
               operator: DoesNotExist
             - key: node-role.kubernetes.io/master
@@ -91,32 +70,44 @@ affinity:
             app.kubernetes.io/instance: mongodb
             service-type: primary-secondary
         topologyKey: kubernetes.io/hostname
-  # 사용 가능한 worker가 3개 미만이면 일부 Pod는 Pending이다.
-  # TODO: StorageClass WaitForFirstConsumer와 PV nodeAffinity가 이 분산 조건과 맞는지 확인.
-
-auth:
-  enabled: true
-  # TODO: 관리 계정 이름을 확정한다. 앱은 이 root 계정을 사용하지 않는다.
-  rootUsername: replace_me_mongodb_admin
-  existingSecret: replace-me-mongodb-root-secret
-  existingSecretPasswordKey: MONGO_INITDB_ROOT_PASSWORD
-
-customUsers:
-  - existingSecret: replace-me-mongodb-app-secret
-    secretKeys:
-      name: MONGO_APP_USERNAME
-      password: MONGO_APP_PASSWORD
-      database: MONGO_APP_DATABASE
-    # Kafka 반영과 조회를 함께 하는 앱에 해당 DB의 readWrite만 부여한다.
-    roles:
-      - readWrite
-  # 최초 빈 데이터 초기화에서 생성된다. 기존 PVC에서는 Secret 변경만으로 갱신되지 않는다.
-  # TODO: 업무 DB·계정·Secret을 확정하고 인덱스 초기화 방식을 확인.
-
-# 상위 Chart 스크립트가 자격증명을 shell/JS 문자열에 삽입하므로 입력을 제한한다.
-# TODO: 암호는 무작위 Base64URL 계열 32자 이상으로 공급한다. 평문을 Git에 넣지 않는다.
-# 이 제약은 MongoDB 자체의 비밀번호 제한이 아니라 선택한 Chart 초기화 코드의 제약이다.
+settings: {}
+# 자격증명은 아래 env의 Secret 참조로만 공급한다.
+userDatabase: {}
+# USERDB_USER/PASSWORD를 쓰지 않아 dbAdmin을 주는 내장 스크립트는 건너뛴다.
+env:
+  # TODO: root/app Secret 이름, DB명과 계정 확정.
+  - name: MONGO_INITDB_ROOT_USERNAME
+    value: replace_me_mongodb_admin
+  - name: MONGO_INITDB_ROOT_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: replace-me-mongodb-root-secret
+        key: MONGO_INITDB_ROOT_PASSWORD
+  - name: MONGO_INITDB_DATABASE
+    valueFrom:
+      secretKeyRef:
+        name: replace-me-mongodb-app-secret
+        key: MONGO_APP_DATABASE
+  - name: MONGO_APP_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: replace-me-mongodb-app-secret
+        key: MONGO_APP_USERNAME
+  - name: MONGO_APP_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: replace-me-mongodb-app-secret
+        key: MONGO_APP_PASSWORD
+  - name: MONGO_APP_DATABASE
+    valueFrom:
+      secretKeyRef:
+        name: replace-me-mongodb-app-secret
+        key: MONGO_APP_DATABASE
+  - name: MONGODB_REPLICA_SET
+    value: rs0
 extraInitContainers:
+  # 차트의 문자열 삽입 제약 때문에 암호는 영숫자/_/- 32자 이상으로 제한한다.
+  # TODO: root 계정 이름 변경 시 guard의 동일 계정 검사도 변경.
   - name: validate-credentials
     image: docker.io/mongo:8.0.26@sha256:3ce3de7f40e914034b03b7dec654005ab54f7dc8306937e44ec6760d9e9409a1
     imagePullPolicy: IfNotPresent
@@ -126,7 +117,8 @@ extraInitContainers:
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true
       capabilities:
-        drop: [ALL]
+        drop:
+          - ALL
     command:
       - bash
       - -ec
@@ -137,7 +129,6 @@ extraInitContainers:
         [[ "$APP_DATABASE" =~ ^[A-Za-z0-9_]{1,64}$ ]] || exit 1
         [[ "$APP_DATABASE" != admin && "$APP_DATABASE" != local && "$APP_DATABASE" != config ]] || exit 1
         [[ "$APP_USERNAME" != replace_me_mongodb_admin ]] || exit 1
-    # TODO: rootUsername 변경 시 위의 동일 계정 검사도 맞춘다.
     env:
       - name: ROOT_PASSWORD
         valueFrom:
@@ -166,84 +157,77 @@ extraInitContainers:
       limits:
         cpu: 250m
         memory: 128Mi
+customScripts:
+  02-init-app-user.js: |
+    // Only mongodb-0 runs this script on an empty datadir.
+    const database = process.env.MONGO_APP_DATABASE;
+    const username = process.env.MONGO_APP_USERNAME;
+    const password = process.env.MONGO_APP_PASSWORD;
+    if (!database || !username || !password) throw new Error("Application credentials required");
+    db.getSiblingDB(database).createUser({
+      user: username,
+      pwd: password,
+      roles: [{role: "readWrite", db: database}]
+    });
 
-extraEnvVars:
-  - name: MONGODB_REPLICA_SET
-    # TODO: replicaSet.name 변경 시 함께 수정.
-    value: rs0
-
-config:
-  content: |
-    net:
-      bindIpAll: true
-      port: 27017
-    storage:
-      dbPath: /data/db
-  # keyFile 인자는 Chart가 추가하며 멤버·사용자 인증을 활성화한다.
-  # TODO: NetworkPolicy 허용 대상과 내부 TLS 정책 확정.
-
-performance:
-  # TODO: 컨테이너 메모리와 실측 부하를 보고 조정. 전체 프로세스 메모리 상한이 아니다.
-  wiredTigerCacheSizeGB: "0.25"
-  # TODO: 예상 CDC 지연·장애 시간과 디스크 용량에 맞춰 조정. 제안값 1GiB.
-  oplogSizeMB: "1024"
-
-# Replica Set이 준비되는 동안 재시작하지 않도록 startup은 인증·ping만 검사한다.
+# TODO: TLS/NetworkPolicy, cache·oplog 크기는 실제 부하에 맞춰 확정.
+customConfig: |
+  net:
+    bindIpAll: true
+    port: 27017
+  storage:
+    dbPath: /data/db
+    wiredTiger:
+      engineConfig:
+        cacheSizeGB: 0.25
+  replication:
+    oplogSizeMB: 1024
 customStartupProbe:
   exec:
     command:
       - mongosh
-      - "mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000"
+      - mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000
       - --quiet
       - --eval
-      - 'const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); quit(a.runCommand({ping:1}).ok===1?0:1);'
+      - const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); quit(a.runCommand({ping:1}).ok===1?0:1);
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 60
-
-# PRIMARY 또는 SECONDARY만 Ready. 초기화 전·최초 동기화 중에는 Ready로 표시하지 않는다.
+# headless Service는 Ready Pod만 DNS에 올린다. 초기화 진행용으로 인증·ping을 검사한다.
+# 이 probe는 RS 과반수/PRIMARY·SECONDARY 상태를 보증하지 않는다. 배포 검증에서 별도 확인한다.
 customReadinessProbe:
   exec:
     command:
       - mongosh
-      - "mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000"
+      - mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000
       - --quiet
       - --eval
-      - 'const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); const h=a.runCommand({hello:1}); quit(h.ok===1&&h.setName===process.env.MONGODB_REPLICA_SET&&(h.isWritablePrimary===true||h.secondary===true)?0:1);'
+      - const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); quit(a.runCommand({ping:1}).ok===1?0:1);
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
-# primary 선출 중인 상태를 프로세스 장애로 오인하지 않도록 인증·ping만 검사한다.
 customLivenessProbe:
   exec:
     command:
       - mongosh
-      - "mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000"
+      - mongodb://127.0.0.1:27017/admin?directConnection=true&serverSelectionTimeoutMS=3000
       - --quiet
       - --eval
-      - 'const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); quit(a.runCommand({ping:1}).ok===1?0:1);'
+      - const a=db.getSiblingDB("admin"); const r=a.auth(process.env.MONGO_INITDB_ROOT_USERNAME,process.env.MONGO_INITDB_ROOT_PASSWORD); if(r!==1&&r?.ok!==1) quit(1); quit(a.runCommand({ping:1}).ok===1?0:1);
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 6
-
-# TODO: 메모리는 멤버당 값이다. 3개 분량과 worker Quota·실측 부하 확인.
 resources:
   requests:
     cpu: 250m
     memory: 512Mi
   limits:
-    cpu: "1"
+    cpu: '1'
     memory: 2Gi
-
-initContainer:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 64Mi
-    limits:
-      cpu: 250m
-      memory: 128Mi
-
-metrics:
-  enabled: false
+initResources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
