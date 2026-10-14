@@ -15,3 +15,21 @@ spec:
     serviceSelectors:
       - matchLabels:
           app.kubernetes.io/name: traefik
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: argocd-vip
+  namespace: metallb-system
+spec:
+  # Reserved by a separate unbound Neutron port for the Argo CD UI.
+  addresses:
+    - 10.10.0.51/32
+  # The argocd-server Service requests this address by annotation.
+  autoAssign: false
+  serviceAllocation:
+    namespaces:
+      - argocd
+    serviceSelectors:
+      - matchLabels:
+          app.kubernetes.io/name: argocd-server
