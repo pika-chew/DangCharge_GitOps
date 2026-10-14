@@ -23,6 +23,16 @@ function checked(result, operation) {
   return result;
 }
 
+function getConfig(admin) {
+  try {
+    return admin.runCommand({replSetGetConfig: 1});
+  } catch (error) {
+    // mongosh throws on an uninitialized set instead of returning {ok: 0}.
+    if (error.code === 94) return {ok: 0, code: 94};
+    throw error;
+  }
+}
+
 function validate(config) {
   if (config._id !== setName || !Array.isArray(config.members) || config.members.length > 3 || config.members.length === 0) {
     throw new ConfigurationError("Unexpected replica set name or member count");
@@ -56,28 +66,35 @@ function primary() {
 
 let complete = false;
 for (let attempt = 1; attempt <= 120; attempt++) {
+  let stage = "seed connection";
   try {
     const seed = connect(hosts[0]);
-    const existing = seed.runCommand({replSetGetConfig: 1});
+    stage = "seed configuration";
+    const existing = getConfig(seed);
     if (existing.ok === 1) {
       validate(existing.config);
     } else if (existing.code === 94) {
       for (const host of hosts.slice(1)) {
-        const peer = connect(host).runCommand({replSetGetConfig: 1});
+        stage = "peer configuration";
+        const peer = getConfig(connect(host));
         if (peer.ok === 1) throw new ConfigurationError("Seed is uninitialized but another member already has a configuration");
         if (peer.code !== 94) checked(peer, "checkPeerConfig");
       }
       // Seed alone first so Pod 0's app account becomes the replicated source.
+      stage = "seed initialization";
       checked(seed.runCommand({replSetInitiate: {_id: setName, members: [{_id: 0, host: hosts[0]}]}}), "initiate");
     } else {
       checked(existing, "getConfig");
     }
 
+    stage = "primary discovery";
     const leader = primary();
-    const config = checked(leader.runCommand({replSetGetConfig: 1}), "getConfig").config;
+    stage = "primary configuration";
+    const config = checked(getConfig(leader), "getConfig").config;
     validate(config);
     const missing = hosts.find(host => !config.members.some(member => member.host === host));
     if (missing) {
+      stage = "member readiness";
       const current = checked(leader.runCommand({replSetGetStatus: 1}), "getStatus");
       if (!current.members.every(member => member.health === 1 && [1, 2].includes(member.state))) {
         throw new Error("Existing members are still synchronizing");
@@ -85,8 +102,10 @@ for (let attempt = 1; attempt <= 120; attempt++) {
       config.version++;
       config.members.push({_id: hosts.indexOf(missing), host: missing, votes: 1, priority: 1});
       // One voting member at a time; never use force during membership changes.
+      stage = "member addition";
       checked(leader.runCommand({replSetReconfig: config, maxTimeMS: 10000}), "addMember");
     } else {
+      stage = "final readiness";
       const status = checked(leader.runCommand({replSetGetStatus: 1}), "getStatus");
       if (status.members.length === 3 && status.members.every(member =>
           hosts.includes(member.name) && member.health === 1 && [1, 2].includes(member.state)) &&
@@ -98,8 +117,9 @@ for (let attempt = 1; attempt <= 120; attempt++) {
     }
   } catch (error) {
     if (error instanceof ConfigurationError) throw error;
-    // Authentication errors must not expose credentials or connection objects.
-    print(`Waiting for Replica Set readiness, attempt ${attempt}/120`);
+    // Report only fixed stage names and numeric codes, never raw connection errors.
+    const code = Number.isInteger(error.code) ? error.code : "unavailable";
+    print(`Waiting for Replica Set readiness, attempt ${attempt}/120, stage=${stage}, code=${code}`);
   }
   sleep(5000);
 }
