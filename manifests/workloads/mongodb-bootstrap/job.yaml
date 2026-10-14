@@ -44,7 +44,7 @@ spec:
             - name: MONGODB_REPLICA_SET
               value: rs0
             - name: MONGODB_HEADLESS_FQDN
-              # TODO: 실제 cluster domain을 values.yaml·Secret URI와 맞춘다.
+              # CoreDNS에서 확인한 도메인. values.yaml·Secret URI와 동일하다.
               value: mongodb-headless.dangcharge.svc.cluster.local
           volumeMounts:
             - name: bootstrap

@@ -1,14 +1,10 @@
-# 초안: Secret·저장 경로·CPU 확인 전 수동 Sync하지 않는다.
+# 서버의 Secret·저장 경로·AVX 확인 완료. 최초 배포는 전체 Application 수동 Sync로 진행한다.
 # Chart: https://github.com/groundhog2k/helm-charts/releases/tag/mongodb-0.8.3
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: mongodb
   namespace: argocd
-  annotations:
-    # TODO: Secret·스토리지·CPU 준비 확인 후 제거.
-    # 자동 sync를 켜지 않는다. 이 설정은 부모 앱의 Application 생성을 막지 않는다.
-    argocd.argoproj.io/skip-reconcile: "true"
   # DB 연쇄 삭제를 피하기 위해 resources-finalizer를 추가하지 않는다.
 spec:
   project: workloads

@@ -1,7 +1,7 @@
 # groundhog2k/mongodb 0.8.3 전용. 서버 준비와 bootstrap Job 검증 후 수동 동기화한다.
 fullnameOverride: mongodb
 image:
-  # TODO: VM의 AVX와 앱 드라이버 호환성 확인.
+  # TODO: 앱 드라이버 호환성 확인.
   registry: docker.io
   repository: mongo
   tag: 8.0.26@sha256:3ce3de7f40e914034b03b7dec654005ab54f7dc8306937e44ec6760d9e9409a1
@@ -22,7 +22,7 @@ replicaSet:
     instances: 0
   # 공유 멤버 인증 키는 배포 전 Secret으로 공급한다.
   keySecretName: mongodb-keyfile
-  # TODO: 실제 CoreDNS cluster domain 확인. Job과 Secret URI도 함께 맞춘다.
+  # CoreDNS에서 확인한 도메인. Job과 Secret URI도 같은 값을 사용한다.
   clusterDomain: cluster.local
 service:
   type: ClusterIP
