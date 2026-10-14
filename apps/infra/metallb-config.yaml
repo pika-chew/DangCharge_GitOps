@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: infra
+  source:
+    repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+    targetRevision: main
+    path: manifests/infra/metallb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    # Sync only after MetalLB CRDs, controller, and webhook are ready.
+    syncOptions:
+      - ServerSideApply=true
