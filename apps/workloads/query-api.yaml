@@ -1,12 +1,9 @@
-# 이미지 태그·Secret·연결 검증 전 root 연결 또는 Sync하지 않는다.
+# root가 등록하며, 이미지·Secret·연결 준비를 확인한 뒤 수동 Sync한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: query-api
   namespace: argocd
-  annotations:
-    # 이미지와 배포 전제 조건이 준비되면 제거한다. root의 exclude도 함께 해제한다.
-    argocd.argoproj.io/skip-reconcile: "true"
 spec:
   project: workloads
   source:
