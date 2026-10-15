@@ -61,6 +61,11 @@ spec:
                 secretKeyRef:
                   name: mysql-app
                   key: MYSQL_PASSWORD
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: producer-secrets
+                  key: ADMIN_API_KEY
           # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
           # Kafka 직접 발행용 환경 변수는 추가하지 않는다. CDC는 외부 Debezium이 담당한다.
           # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
