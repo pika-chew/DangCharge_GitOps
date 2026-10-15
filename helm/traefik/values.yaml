@@ -1,10 +1,14 @@
 # https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml
 service:
-  type: NodePort
+  type: LoadBalancer
+  annotations:
+    # traefik-vip 풀(autoAssign: false)에서 예약한 VIP를 요청한다.
+    metallb.io/loadBalancerIPs: 10.10.0.50
+  spec:
+    # VIP로만 받으므로 NodePort를 할당하지 않는다.
+    allocateLoadBalancerNodePorts: false
 
 ports:
-  web:
-    nodePort: 30080
   websecure:
     # TODO: HTTPS를 쓰게 되면 다시 열기
     expose:
