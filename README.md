@@ -19,10 +19,12 @@
   토픽 준비 및 소비·DLT 발행 권한을 확인한다.
 - GHCR 패키지가 비공개라면 `imagePullSecrets`를 먼저 구성한다.
 
-이미지·Secret·MongoDB/Kafka 준비를 확인한 뒤 `bootstrap/root-app.yaml`의 query-api
-`exclude`와 `apps/workloads/query-api.yaml`의 `skip-reconcile`을 제거한다.
-변경을 main에 반영하고 root에서 Application을 등록한 다음 query-api를 수동 Sync한다.
-자동 Sync는 비활성 상태다.
+root는 query-api Application도 등록한다. root의 기존 query-api 제외 설정을 해제하려면
+변경을 main에 반영한 뒤 Ansible의 `playbooks/argocd-bootstrap.yml`을 다시 실행해
+root Application 설정을 적용한다. root는 `apps/`만 감시하므로 `bootstrap/` 변경을
+스스로 반영하지 않는다.
+이미지·Secret·MongoDB/Kafka 준비를 확인한 뒤 query-api를 수동 Sync한다.
+query-api의 자동 Sync는 비활성 상태다.
 
 외부 요청 `/query/api/v1/...`는 Ingress에서 `/query`를 제거해 앱의 `/api/v1/...`로
 전달한다. `SERVER_CONTEXT_PATH=/`와 Spring 표준 `SERVER_SERVLET_CONTEXT_PATH=/`를
