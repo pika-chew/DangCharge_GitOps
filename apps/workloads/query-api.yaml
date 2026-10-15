@@ -1,27 +1,19 @@
-# 초안: consumer 구현·실제 이미지·MongoDB/Kafka 계약 확정 전 root 연결 또는 Sync하지 않는다.
+# root가 등록하며, 이미지·Secret·연결 준비를 확인한 뒤 수동 Sync한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: query-api
-  # TODO: Argo CD Application이 있는 Namespace로 변경.
-  namespace: replace-me-argocd-namespace
-  annotations:
-    # TODO: 설치된 Argo CD 지원 확인 후 초안 확정 시 제거.
-    # alpha 기능이므로 root 미연결 상태도 유지한다.
-    argocd.argoproj.io/skip-reconcile: "true"
+  namespace: argocd
 spec:
-  # TODO: workload 배포를 허용하는 AppProject 이름.
-  project: replace-me-workloads-project
+  project: workloads
   source:
     repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
-    # TODO: PR 병합 후 root 앱 추적 브랜치와 맞춘다.
-    targetRevision: feat/k8s-workloads
+    # 변경사항은 main 병합 후 반영된다.
+    targetRevision: main
     path: manifests/workloads/query-api
   destination:
-    # TODO: 배포 대상 클러스터가 Argo CD와 동일한지 확인.
     server: https://kubernetes.default.svc
-    # TODO: kustomization.yaml 및 MongoDB Namespace와 함께 변경.
-    namespace: replace-me-workloads-namespace
+    namespace: dangcharge
   # DB/Kafka 준비 순서만 믿지 않고 앱 자체 재시도·readiness 구현을 확인해야 한다.
   # 자동 sync와 auto-prune은 초안에서 활성화하지 않는다.
   syncPolicy:
