@@ -14,4 +14,4 @@ spec:
       port: 8080
       targetPort: http
       protocol: TCP
-# 외부 경로·prefix 변환은 후속 Ingress 단계에서 확정한다.
+# 외부 경로는 api-routing Ingress에서 경로 변환 없이 연결한다.
