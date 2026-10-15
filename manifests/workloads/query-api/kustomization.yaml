@@ -24,9 +24,9 @@ configMapGenerator:
 images:
   - name: query-api
     # TODO: Dockerfile/빌드 방식과 Docker Hub의 실제 이미지 경로를 확정.
-    newName: replace-me-dockerhub-namespace/replace-me-query-api-image
+    newName: ghcr.io/pika-chew/dangcharge-be-consumer
     # TODO: 빌드된 이미지의 고정 커밋 태그로 교체하거나 newTag 대신 digest 사용.
-    newTag: replace-me-commit-tag
+    newTag: "0e6ec67"
 
 # 초기 consumer/query는 하나의 Pod 1개로 가정하며 HPA는 포함하지 않는다.
 # TODO: 실제 구현이 Kafka 소비와 조회 API로 분리되면 배포 구성을 다시 정한다.
