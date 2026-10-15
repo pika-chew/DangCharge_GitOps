@@ -12,6 +12,8 @@ configMapGenerator:
   - name: command-api-config
     literals:
       - DB_URL=jdbc:mysql://mysql.dangcharge.svc:3306/dangcharge
+      # 클러스터 밖 kafka-1 VM의 EXTERNAL 리스너 (Infra ansible/roles/kafka). PLAINTEXT, 인증 없음.
+      - KAFKA_BOOTSTRAP_SERVERS=10.10.0.32:9092
 # 기본 이름 hash를 유지해 설정 변경 시 Pod template 참조도 변경되게 한다.
 
 images:
