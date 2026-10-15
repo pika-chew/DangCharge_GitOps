@@ -12,6 +12,8 @@ spec:
     path: apps
     directory:
       recurse: true
+      # 조회 앱과 공개 라우팅은 배포 준비가 끝난 뒤 포함한다.
+      exclude: '{workloads/query-api.yaml,workloads/api-routing.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
