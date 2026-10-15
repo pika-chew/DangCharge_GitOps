@@ -1,6 +1,5 @@
-# 확인 코드: consumer develop d89a3cc991d968abb2d2f36d8386d88b90e02500
-# Spring Boot 4.1.1 + Java 17, MongoDB/Web MVC/Actuator 의존성만 확인했다.
-# Kafka 처리·조회 Controller·Dockerfile은 아직 없으므로 실행 가능한 배포가 아니다.
+# 확인 코드: consumer develop fe7187338c7bf35649aee5311656c3aeb74ae905
+# Spring Boot 4.1.1 + Java 17. application.yaml, Kafka/JWT 설정, Dockerfile을 확인했다.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,37 +34,43 @@ spec:
           # Kustomize images에서 실제 경로와 태그 또는 digest로 교체한다.
           image: query-api:replace-me-commit-tag
           imagePullPolicy: IfNotPresent
-          # TODO: Dockerfile/ENTRYPOINT와 실제 앱 실행 방식을 확인.
-          # 확인되지 않은 JAR 경로나 시작 명령을 지정하지 않는다.
+          # 이미지 ENTRYPOINT(java -jar /app/app.jar)를 사용한다.
           ports:
             - name: http
-              # 명시한 SERVER_PORT에 맞춘 제안값이며 이미지 실행으로 확인해야 한다.
               containerPort: 8080
           env:
             - name: SERVER_PORT
               value: "8080"
-            # Boot 4.1의 spring.mongodb.uri 표준 이름을 제안한다.
-            # TODO: 최종 앱의 환경 변수 계약과 맞춘다.
-            - name: SPRING_MONGODB_URI
+            - name: SERVER_CONTEXT_PATH
+              value: "/"
+            # consumer는 SERVER_CONTEXT_PATH를 직접 참조하지 않아 표준 설정도 지정한다.
+            # Ingress가 /query를 제거하므로 앱의 context path는 /로 유지한다.
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/"
+            - name: SERVER_FORWARD_HEADERS_STRATEGY
+              value: framework
+            - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
-                  # TODO: MongoDB customUsers의 앱 Secret에 MONGODB_URI 항목을 추가.
-                  name: replace-me-mongodb-app-secret
+                  name: mongodb-app
                   key: MONGODB_URI
-            # URI는 앱 계정·업무 DB와 세 멤버 DNS, replicaSet, authSource를 포함해야 한다.
-            # TODO: 사용자명·암호 URI 인코딩, rs0·cluster domain·TLS 계약 확인.
-            # 자격증명을 포함한 전체 URI는 ConfigMap이나 Git에 평문으로 넣지 않는다.
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+            # scripts/mongodb/create-secrets.sh가 rs0의 세 멤버와 앱 계정 URI를 생성한다.
+            - name: KAFKA_BOOTSTRAP_SERVERS
               valueFrom:
                 configMapKeyRef:
                   name: query-api-config
-                  key: SPRING_KAFKA_BOOTSTRAP_SERVERS
-            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_CONSUMER_GROUP_ID
               valueFrom:
                 configMapKeyRef:
                   name: query-api-config
-                  key: SPRING_KAFKA_CONSUMER_GROUP_ID
-          # TODO: Kafka 인증·JWT 검증 키 등 실제 구현에 필요한 Secret 참조를 추가.
+                  key: KAFKA_CONSUMER_GROUP_ID
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  # producer가 토큰 서명에 사용하는 키 쌍의 공개키만 공급한다.
+                  name: consumer-secrets
+                  key: JWT_PUBLIC_KEY
           # MongoDB 변경은 중복 이벤트에도 안전해야 한다. Pod 1개도 재처리가 발생할 수 있다.
           # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
           # MongoDB 접속이나 Kafka 소비·projection 준비 상태를 보장하는 검사가 아니다.
@@ -97,4 +102,4 @@ spec:
               drop:
                 - ALL
             # TODO: 최종 이미지 숫자 UID/GID 확인 후 runAsNonRoot 등 실행 권한 설정.
-      # TODO: 비공개 Docker Hub 이미지이면 준비된 imagePullSecrets를 추가.
+      # TODO: GHCR 패키지가 비공개이면 준비된 imagePullSecrets를 추가.
