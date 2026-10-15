@@ -42,6 +42,10 @@ spec:
             # Spring Boot 실행 포트를 Service와 맞춘다. 실제 이미지 기동으로 확인해야 한다.
             - name: SERVER_PORT
               value: "8080"
+            - name: SERVER_CONTEXT_PATH
+              value: "/"
+            - name: SERVER_FORWARD_HEADERS_STRATEGY
+              value: framework
             - name: DB_URL
               valueFrom:
                 configMapKeyRef:
