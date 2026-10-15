@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: dangcharge
 
 resources:
+  - middleware.yaml
   - ingress.yaml
 
 # Traefik 설치, VIP, cloudflared 연결은 별도로 관리한다.

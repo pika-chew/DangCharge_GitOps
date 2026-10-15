@@ -3,8 +3,8 @@ kind: Ingress
 metadata:
   name: api-routing
   annotations:
-    # Cloudflare에서 FIP:80으로 전달하는 HTTP origin 요청을 받는다.
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: dangcharge-api-prefix@kubernetescrd
   labels:
     app.kubernetes.io/name: api-routing
     app.kubernetes.io/component: routing
@@ -14,51 +14,21 @@ spec:
     - host: api.dangcharge.cloud
       http:
         paths:
-          # 경로를 재작성하지 않는다. query-api 준비 전에는 프로듀서만 연결한다.
-          # /api/v1 전체를 열지 않아 내부 관리 API를 라우팅 대상에서 제외한다.
-          - path: /api/v1/auth
+          - path: /command
             pathType: Prefix
             backend:
               service:
                 name: command-api
                 port:
                   name: http
-          - path: /api/v1/users
+          - path: /query
             pathType: Prefix
             backend:
               service:
-                name: command-api
-                port:
-                  name: http
-          - path: /api/v1/vehicle-models
-            pathType: Prefix
-            backend:
-              service:
-                name: command-api
-                port:
-                  name: http
-          - path: /api/v1/stations
-            pathType: Prefix
-            backend:
-              service:
-                name: command-api
-                port:
-                  name: http
-          - path: /api/v1/reservations
-            pathType: Prefix
-            backend:
-              service:
-                name: command-api
-                port:
-                  name: http
-          - path: /api/v1/charging
-            pathType: Prefix
-            backend:
-              service:
-                name: command-api
+                name: query-api
                 port:
                   name: http
 
-# JWT 인증, 권한, CORS는 앱에서 처리한다. Ingress는 HTTP 메서드로 분기하지 않는다.
-# 관리 API, Actuator, Swagger는 이 Ingress의 공개 대상에 포함하지 않는다.
+# api-prefix가 앱 구분 접두어를 제거한다. 내부 API 경로는 그대로 유지한다.
+# JWT 인증, 관리 API 권한과 CORS는 앱에서 처리한다.
 # 외부 HTTPS는 Cloudflare에서 종료하고, Traefik origin은 HTTP를 사용한다.
