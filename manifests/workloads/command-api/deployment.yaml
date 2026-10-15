@@ -66,8 +66,15 @@ spec:
                 secretKeyRef:
                   name: producer-secrets
                   key: ADMIN_API_KEY
+            # 앱의 outbox relay가 outbox_events를 폴링해 Kafka로 직접 발행한다.
+            # 토픽은 dangcharge.{aggregateType}이다. 브로커가 없으면 전송을 재시도하며 이벤트는 DB에 남는다.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: command-api-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
           # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
-          # Kafka 직접 발행용 환경 변수는 추가하지 않는다. CDC는 외부 Debezium이 담당한다.
+          # relay는 Pod마다 실행된다. replicas를 늘리면 같은 aggregate의 이벤트 순서가 섞일 수 있다.
           # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
           startupProbe:
             tcpSocket:

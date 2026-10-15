@@ -8,20 +8,17 @@ resources:
   - deployment.yaml
   - service.yaml
 
-# Spring Boot 4.1 표준 설정 이름을 제안한다. 실제 앱 계약으로 확정한 것은 아니다.
-# 현재 consumer에 Kafka 의존성·리스너가 없으므로 이 설정만으로 이벤트를 소비하지 않는다.
+# 환경 변수 이름은 consumer develop application.yaml의 placeholder와 맞춘다.
 configMapGenerator:
   - name: query-api-config
     literals:
-      # TODO: 외부 Kafka의 실제 bootstrap 서버 목록으로 변경.
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=replace-me-kafka-bootstrap-servers
-      # TODO: 안정적으로 유지할 실제 consumer group ID로 변경.
-      # group ID를 바꾸면 기존 그룹 offset을 이어 쓰지 않는다.
-      # TODO: 새 그룹의 시작 위치와 재처리·누락 영향을 확인.
-      - SPRING_KAFKA_CONSUMER_GROUP_ID=replace-me-consumer-group
-      # TODO: 토픽과 앱이 읽는 환경 변수 이름은 구현 확인 후 추가.
-      # TODO: Kafka 인증 방식·TLS·security protocol을 확정하고 Secret 참조로 추가.
-      # TODO: listener concurrency·offset commit·retry·DLQ·중복 처리 정책 확인.
+      # 클러스터 밖 kafka-1 VM의 EXTERNAL 리스너 (Infra ansible/roles/kafka). PLAINTEXT, 인증 없음.
+      - KAFKA_BOOTSTRAP_SERVERS=10.10.0.32:9092
+      # 앱 기본값과 같다. group ID를 바꾸면 기존 그룹 offset을 이어 쓰지 않는다.
+      # 처음 붙는 그룹은 auto-offset-reset=earliest로 토픽 처음부터 다시 읽는다.
+      - KAFKA_CONSUMER_GROUP_ID=dangcharge-consumer
+      # 토픽(dangcharge.station·reservation·user)은 앱 코드에 고정돼 있다.
+      # 처리 실패 메시지는 앱이 5분 재시도 후 {토픽}.DLT로 보낸다.
 # 기본 이름 hash를 유지해 설정 변경 시 Deployment의 참조도 함께 변경한다.
 
 images:
