@@ -10,9 +10,12 @@ service:
 
 ports:
   websecure:
-    # TODO: HTTPS를 쓰게 되면 다시 열기
     expose:
-      default: false
+      default: true
+    exposedPort: 443
+    tls:
+      enabled: true
+      # TODO: api.dangcharge.cloud의 신뢰할 수 있는 인증서 설정.
 
 ingressClass:
   enabled: true
