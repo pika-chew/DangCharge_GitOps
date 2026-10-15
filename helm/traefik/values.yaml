@@ -7,6 +7,8 @@ service:
   spec:
     # VIP로만 받으므로 NodePort를 할당하지 않는다.
     allocateLoadBalancerNodePorts: false
+    # 해당 IP에서 오는 요청의 X-Forwarded-* 헤더를 신뢰
+    externalTrafficPolicy: Local
 
 ports:
   websecure:
@@ -16,6 +18,11 @@ ports:
     tls:
       enabled: true
       # TODO: api.dangcharge.cloud의 신뢰할 수 있는 인증서 설정.
+  # X-Forwarded-* 헤더를 신뢰할 주소
+  web:
+    forwardedHeaders:
+      trustedIPs:
+        - "10.20.0.1/32"
 
 ingressClass:
   enabled: true
