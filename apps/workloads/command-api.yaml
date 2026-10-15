@@ -1,13 +1,9 @@
-# 초안: 실제 이미지·DB·상태 검사 계약 확정 전 수동 Sync하지 않는다.
+# root가 등록하며, 실제 배포는 수동 Sync로 진행한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: command-api
   namespace: argocd
-  annotations:
-    # TODO: 설치된 Argo CD 지원과 배포 준비 확인 후 제거.
-    # root는 이 Application을 읽는다. 자동 sync는 별도로 활성화하지 않는다.
-    argocd.argoproj.io/skip-reconcile: "true"
 spec:
   project: workloads
   source:
@@ -16,11 +12,11 @@ spec:
     targetRevision: main
     path: manifests/workloads/command-api
   destination:
-    # TODO: 배포 대상 클러스터가 Argo CD와 동일한지 확인.
     server: https://kubernetes.default.svc
     namespace: dangcharge
   # DB 생성 순서에 의존하지 않는다. 실제 앱의 연결 재시도·readiness 구현이 필요하다.
-  # 자동 sync와 auto-prune은 초안에서 활성화하지 않는다.
+  # 최초 배포에서 이미지 pull, DB 연결, 상태 검사와 실제 API를 확인한다.
+  # 자동 sync와 auto-prune은 활성화하지 않는다.
   syncPolicy:
     retry:
       limit: 5
