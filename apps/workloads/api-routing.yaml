@@ -1,4 +1,4 @@
-# 프로듀서의 외부 라우팅을 등록하며, 최초 적용은 수동 Sync로 진행한다.
+# 프로듀서와 컨슈머의 외부 경로를 등록하며, 적용은 수동 Sync로 진행한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
