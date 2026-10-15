@@ -35,3 +35,9 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
+    
+# Traefik log 설정
+logs:
+  access:
+    enabled: true
+    format: json
