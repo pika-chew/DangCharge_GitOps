@@ -3,6 +3,11 @@
 
 ## query-api 배포 준비
 
+- command-api는 `producer-secrets`의 `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`,
+  `ADMIN_API_KEY`를 읽는다. 기존 관리 API 키를 유지하면서 JWT 키 쌍을 준비한다.
+  producer 공개키는 `consumer-secrets`의 `JWT_PUBLIC_KEY`와 같아야 한다.
+  키가 없는 producer는 임시 키를 생성하므로 고정 키 적용 전 발급한 토큰은 다시 발급받는다.
+
 - consumer `develop`의 `fe7187338c7bf35649aee5311656c3aeb74ae905` 설정을 기준으로 작성했다.
 - Jenkins가 `ghcr.io/pika-chew/dangcharge-be-consumer` 이미지를 push하고
   `manifests/workloads/query-api/kustomization.yaml`의 `newTag`를 실제 커밋 태그로

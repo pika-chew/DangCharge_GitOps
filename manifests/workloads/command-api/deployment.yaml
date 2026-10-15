@@ -61,6 +61,17 @@ spec:
                 secretKeyRef:
                   name: mysql-app
                   key: MYSQL_PASSWORD
+            # 고정 키 쌍을 공급해 재시작 후에도 토큰 검증 키를 유지한다.
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: producer-secrets
+                  key: JWT_PRIVATE_KEY
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: producer-secrets
+                  key: JWT_PUBLIC_KEY
             - name: ADMIN_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -73,7 +84,7 @@ spec:
                 configMapKeyRef:
                   name: command-api-config
                   key: KAFKA_BOOTSTRAP_SERVERS
-          # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
+          # TODO: 실제 앱 구현에 필요한 CORS 설정을 확인.
           # relay는 Pod마다 실행된다. replicas를 늘리면 같은 aggregate의 이벤트 순서가 섞일 수 있다.
           # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
           startupProbe:
