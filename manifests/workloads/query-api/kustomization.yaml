@@ -23,6 +23,6 @@ images:
     # consumer Jenkinsfile의 IMAGE_REPO와 일치한다.
     newName: ghcr.io/pika-chew/dangcharge-be-consumer
     # 이미지 push 후 Jenkins가 실제 커밋 태그로 갱신한다. 교체 전에는 Sync하지 않는다.
-    newTag: "0e6ec67"
+    newTag: "5b2e238"
 
 # Kafka 소비와 조회 API를 Pod 1개로 운용하며 HPA는 포함하지 않는다.
