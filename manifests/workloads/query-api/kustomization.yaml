@@ -4,8 +4,13 @@ kind: Kustomization
 namespace: dangcharge
 
 resources:
-  - deployment.yaml
+  - rollout.yaml
   - service.yaml
+  - service-preview.yaml
+
+# Rollout 안의 ConfigMap 참조에 hash 이름을 반영한다.
+configurations:
+  - rollout-transform.yaml
 
 # consumer application.yaml에서 읽는 환경 변수 이름을 사용한다.
 configMapGenerator:
@@ -16,7 +21,7 @@ configMapGenerator:
       # 앱 기본값과 일치시킨다. 변경하면 기존 그룹 offset을 이어 쓰지 않는다.
       # 새 그룹은 앱의 auto-offset-reset=earliest에 따라 처음부터 재처리한다.
       - KAFKA_CONSUMER_GROUP_ID=dangcharge-consumer
-# 기본 이름 hash를 유지해 설정 변경 시 Deployment의 참조도 함께 변경한다.
+# 기본 이름 hash를 유지해 설정 변경 시 Rollout의 참조도 함께 변경한다.
 
 images:
   - name: query-api

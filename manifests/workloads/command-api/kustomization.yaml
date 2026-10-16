@@ -4,8 +4,13 @@ kind: Kustomization
 namespace: dangcharge
 
 resources:
-  - deployment.yaml
+  - rollout.yaml
   - service.yaml
+  - service-preview.yaml
+
+# Rollout 안의 ConfigMap 참조에 hash 이름을 반영한다.
+configurations:
+  - rollout-transform.yaml
 
 # 주소 설정은 ConfigMap, 비밀번호는 기존 Secret 참조로 분리한다.
 configMapGenerator:

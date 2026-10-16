@@ -1,0 +1,15 @@
+# https://github.com/argoproj/argo-helm/blob/main/charts/argo-rollouts/values.yaml
+controller:
+  # 기본값 2는 leader election용 대기 복제본이다. 소규모 클러스터라 1개로 운용한다.
+  replicas: 1
+  resources:
+    # TODO: 제안값. Rollout 수와 실측 사용량에 맞춰 조정.
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# 전환·promote는 Argo CD UI와 kubectl argo rollouts 플러그인으로 한다.
+dashboard:
+  enabled: false
