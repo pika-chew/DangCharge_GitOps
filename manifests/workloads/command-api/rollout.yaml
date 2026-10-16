@@ -1,7 +1,7 @@
 # 확인 코드: producer develop 90aa99c65f44bebfef7b9f0161d6902b2b42eeb3
 # Spring Boot + Java 17, Dockerfile EXPOSE 8080, DB_URL/DB_USERNAME/DB_PASSWORD.
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: command-api
   labels:
@@ -9,16 +9,25 @@ metadata:
     app.kubernetes.io/component: producer
 spec:
   replicas: 1
-  # 초기 1개 운용에서 업데이트 시 기존·새 Pod 동시 실행을 피한다.
-  # TODO: 무중단 요구와 동시 실행 허용 여부 확인. 현재 재배포 중 서비스 중단이 발생한다.
-  strategy:
-    type: Recreate
   revisionHistoryLimit: 3
-  # TODO: 실제 DB 연결·앱 시작 시간을 측정해 조정. 실패 시 자동 rollback은 하지 않는다.
+  # TODO: 실제 DB 연결·앱 시작 시간을 측정해 조정.
   progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: command-api
+  # 블루-그린 전환 중에는 blue와 green의 outbox relay가 함께 실행된다.
+  # relay는 FOR UPDATE SKIP LOCKED로 행을 나눠 중복 발행하지 않고, 역순은 consumer의 version 비교가 거른다.
+  # ddl-auto: update로 green 기동 시 공유 MySQL 스키마가 바뀐다. 엔티티 변경은 팀 규칙에 따라 하위 호환으로 한다.
+  strategy:
+    blueGreen:
+      # api-routing Ingress가 가리키는 Service. promote 시 selector가 green으로 바뀐다.
+      activeService: command-api
+      # promote 전 green 확인용. 클러스터 안이나 port-forward로만 접근한다.
+      previewService: command-api-preview
+      # green 확인 후 Argo CD UI 또는 kubectl argo rollouts promote로 전환한다.
+      autoPromotionEnabled: false
+      # 전환 후 blue를 잠시 유지해 즉시 되돌릴 수 있게 한다.
+      scaleDownDelaySeconds: 30
   template:
     metadata:
       labels:
@@ -61,17 +70,6 @@ spec:
                 secretKeyRef:
                   name: mysql-app
                   key: MYSQL_PASSWORD
-            # 고정 키 쌍을 공급해 재시작 후에도 토큰 검증 키를 유지한다.
-            - name: JWT_PRIVATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: producer-secrets
-                  key: JWT_PRIVATE_KEY
-            - name: JWT_PUBLIC_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: producer-secrets
-                  key: JWT_PUBLIC_KEY
             - name: ADMIN_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -84,23 +82,30 @@ spec:
                 configMapKeyRef:
                   name: command-api-config
                   key: KAFKA_BOOTSTRAP_SERVERS
-          # TODO: 실제 앱 구현에 필요한 CORS 설정을 확인.
-          # relay는 Pod마다 실행된다. replicas를 늘리면 같은 aggregate의 이벤트 순서가 섞일 수 있다.
-          # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
+          # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
+          # producer PR #21의 actuator 경로. readiness는 DB 연결을 포함하고 liveness는 포함하지 않는다.
+          # DB 일시 장애를 liveness 실패로 연결하면 불필요한 재시작이 반복될 수 있다.
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/liveness
               port: http
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 30
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/readiness
               port: http
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
-          # TODO: 앱 생존 검사 endpoint 확정 후 livenessProbe 추가.
-          # DB 일시 장애를 liveness 실패로 연결하면 불필요한 재시작이 반복될 수 있다.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           resources:
             # TODO: 제안값. Java heap·native memory·실측 부하·Quota에 맞춰 조정.
             requests:

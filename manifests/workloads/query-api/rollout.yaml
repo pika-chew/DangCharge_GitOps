@@ -1,7 +1,7 @@
 # 확인 코드: consumer develop fe7187338c7bf35649aee5311656c3aeb74ae905
 # Spring Boot 4.1.1 + Java 17. application.yaml, Kafka/JWT 설정, Dockerfile을 확인했다.
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: query-api
   labels:
@@ -9,17 +9,25 @@ metadata:
     app.kubernetes.io/component: consumer
 spec:
   replicas: 1
-  # 초기 업데이트에서 기존·새 consumer의 동시 실행을 피한다.
-  # 재배포 중 조회 API와 Kafka 소비가 중단된다. HPA는 적용하지 않는다.
-  # TODO: 실제 group·파티션·중복 처리 정책 확인 후 무중단 배포 요구를 결정.
-  strategy:
-    type: Recreate
   revisionHistoryLimit: 3
-  # TODO: 앱 시작·MongoDB 연결 시간을 실측해 조정. 자동 rollback은 하지 않는다.
+  # TODO: 앱 시작·MongoDB 연결 시간을 실측해 조정.
   progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app.kubernetes.io/name: query-api
+  # 블루-그린 전환 중에는 blue와 green이 함께 실행되어 둘 다 Kafka를 소비한다.
+  # 같은 consumer group이라 파티션은 나뉘고, 중복·역순 이벤트는 앱의 replaceIfNewer(version 비교)가 거른다.
+  # MongoDB 문서 구조 변경은 구버전 조회 API가 읽을 수 있도록 하위 호환으로 한다.
+  strategy:
+    blueGreen:
+      # api-routing Ingress가 가리키는 Service. promote 시 selector가 green으로 바뀐다.
+      activeService: query-api
+      # promote 전 green 확인용. 클러스터 안이나 port-forward로만 접근한다.
+      previewService: query-api-preview
+      # green 확인 후 Argo CD UI 또는 kubectl argo rollouts promote로 전환한다.
+      autoPromotionEnabled: false
+      # 전환 후 blue를 잠시 유지해 즉시 되돌릴 수 있게 한다.
+      scaleDownDelaySeconds: 30
   template:
     metadata:
       labels:
@@ -71,23 +79,29 @@ spec:
                   # producer가 토큰 서명에 사용하는 키 쌍의 공개키만 공급한다.
                   name: consumer-secrets
                   key: JWT_PUBLIC_KEY
-          # MongoDB 변경은 중복 이벤트에도 안전해야 한다. Pod 1개도 재처리가 발생할 수 있다.
-          # TODO: 실제 HTTP startup/readiness 계약 확정 후 교체. TCP는 포트 개방만 검사한다.
-          # MongoDB 접속이나 Kafka 소비·projection 준비 상태를 보장하는 검사가 아니다.
+          # consumer feat/health-probes의 actuator 경로. 해당 커밋이 포함된 이미지로 배포해야 한다.
+          # readiness는 MongoDB 연결을 포함하고, liveness는 포함하지 않아 MongoDB 장애로 재시작하지 않는다.
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/liveness
               port: http
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 30
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/readiness
               port: http
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
-          # TODO: 앱 생존 검사 endpoint 확정 후 livenessProbe 추가.
-          # MongoDB/Kafka 일시 장애를 생존 검사 실패로 연결하지 않는다.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           resources:
             # TODO: 제안값. Java heap·native memory·이벤트 처리 부하·Quota에 맞춰 조정.
             requests:
