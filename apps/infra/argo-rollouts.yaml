@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    # command-api, query-api의 Rollout보다 CRD와 컨트롤러가 먼저 준비되어야 한다.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: infra
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-rollouts
+      targetRevision: 2.43.7 # Argo Rollouts v1.10.1. TODO: 차트 버전 확정
+      helm:
+        valueFiles:
+          - $values/helm/argo-rollouts/values.yaml
+    - repoURL: https://github.com/pika-chew/DangCharge_GitOps.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Rollout CRD는 크기가 커서 client-side apply의 annotation 한도를 넘는다.
+      - ServerSideApply=true
