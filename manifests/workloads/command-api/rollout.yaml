@@ -78,6 +78,18 @@ spec:
                 secretKeyRef:
                   name: producer-secrets
                   key: ADMIN_API_KEY
+            # 키가 없으면 앱이 임시 키를 만들어 재시작·promote 때마다 토큰이 무효가 된다.
+            # JWT_PUBLIC_KEY는 consumer-secrets의 JWT_PUBLIC_KEY와 같은 키 쌍이어야 한다.
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: producer-secrets
+                  key: JWT_PRIVATE_KEY
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: producer-secrets
+                  key: JWT_PUBLIC_KEY
             # 앱의 outbox relay가 outbox_events를 폴링해 Kafka로 직접 발행한다.
             # 토픽은 dangcharge.{aggregateType}이다. 브로커가 없으면 전송을 재시도하며 이벤트는 DB에 남는다.
             - name: KAFKA_BOOTSTRAP_SERVERS
@@ -85,7 +97,7 @@ spec:
                 configMapKeyRef:
                   name: command-api-config
                   key: KAFKA_BOOTSTRAP_SERVERS
-          # TODO: JWT·CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
+          # TODO: CORS 등 실제 앱 구현에 필요한 설정과 Secret만 추가.
           # producer PR #21의 actuator 경로. readiness는 DB 연결을 포함하고 liveness는 포함하지 않는다.
           # DB 일시 장애를 liveness 실패로 연결하면 불필요한 재시작이 반복될 수 있다.
           startupProbe:
