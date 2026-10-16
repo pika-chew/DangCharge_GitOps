@@ -7,6 +7,9 @@ metadata:
   labels:
     app.kubernetes.io/name: command-api
     app.kubernetes.io/component: producer
+    annotations:
+  # 블루-그린 리허설용. 값을 바꾸면 같은 이미지로 새 revision이 생긴다.
+    dangcharge.cloud/rehearsal: "10"
 spec:
   replicas: 1
   revisionHistoryLimit: 3
