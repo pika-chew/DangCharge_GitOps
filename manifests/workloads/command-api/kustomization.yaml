@@ -26,6 +26,6 @@ images:
     # GitHub Organization Package의 프로듀서 이미지를 사용한다.
     newName: ghcr.io/pika-chew/dangcharge-be-producer
     # Jenkins는 이 항목만 갱신하도록 후속 단계에서 연결한다.
-    newTag: "b36f558"
+    newTag: "f53aa89"
 
 # 초기 API는 1개로 유지한다. HPA 리소스는 포함하지 않는다.
