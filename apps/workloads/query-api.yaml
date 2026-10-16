@@ -1,4 +1,4 @@
-# root가 등록하며, 이미지·Secret·연결 준비를 확인한 뒤 수동 Sync한다.
+# root가 등록한다. main 변경은 자동 Sync되고, 트래픽 전환은 Rollout의 수동 promote로 한다.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -15,8 +15,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: dangcharge
   # DB/Kafka 준비 순서만 믿지 않고 앱 자체 재시도·readiness 구현을 확인해야 한다.
-  # 자동 sync와 auto-prune은 초안에서 활성화하지 않는다.
+  # 자동 Sync는 green 기동까지만 한다. blue-green 전환은 preview 확인 후 promote한다.
+  # selfHeal이 클러스터 직접 변경을 되돌리므로 롤백은 kubectl argo rollouts undo가 아닌 Git revert로 한다.
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     retry:
       limit: 5
       backoff:
