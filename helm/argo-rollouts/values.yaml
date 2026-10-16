@@ -22,7 +22,58 @@ notifications:
   notifiers:
     service.slack: |
       token: $slack-token
-  # 모든 Rollout에 적용한다. 메시지는 컨트롤러 기본 템플릿을 쓴다.
+  # 차트는 트리거·템플릿을 만들지 않는다. v1.10.1 notifications-install.yaml의 정의를 바탕으로 한다.
+  templates:
+    template.rollout-paused: |
+      message: |
+        :large_blue_circle: *{{.rollout.metadata.name}}* green이 떠서 promote를 기다립니다.
+        `kubectl argo rollouts promote {{.rollout.metadata.name}} -n {{.rollout.metadata.namespace}}`
+      slack:
+        attachments: |
+          [{
+            "color": "#2EB6F0",
+            "fields": [
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if $index}},{{end}}
+              {"title": "{{$c.name}}", "value": "{{$c.image}}", "short": true}
+            {{end}}
+            ]
+          }]
+    template.rollout-completed: |
+      message: ":large_green_circle: *{{.rollout.metadata.name}}* 전환이 완료됐습니다."
+      slack:
+        attachments: |
+          [{
+            "color": "#18BE52",
+            "fields": [
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if $index}},{{end}}
+              {"title": "{{$c.name}}", "value": "{{$c.image}}", "short": true}
+            {{end}}
+            ]
+          }]
+    template.rollout-aborted: |
+      message: ":red_circle: *{{.rollout.metadata.name}}* 배포가 abort됐습니다. blue를 유지합니다. Git에서 이미지 태그를 되돌리세요."
+      slack:
+        attachments: |
+          [{
+            "color": "#E01E5A",
+            "fields": [
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if $index}},{{end}}
+              {"title": "{{$c.name}}", "value": "{{$c.image}}", "short": true}
+            {{end}}
+            ]
+          }]
+  # 이벤트 기반 트리거라 조건(when) 없이 보낼 템플릿만 지정한다.
+  triggers:
+    trigger.on-rollout-paused: |
+      - send: [rollout-paused]
+    trigger.on-rollout-completed: |
+      - send: [rollout-completed]
+    trigger.on-rollout-aborted: |
+      - send: [rollout-aborted]
+  # 모든 Rollout에 적용한다.
   subscriptions:
     - recipients:
         # 봇(DangCharge CD)이 #argocd 채널에 초대되어 있어야 한다.
