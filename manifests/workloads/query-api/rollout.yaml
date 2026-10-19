@@ -35,7 +35,7 @@ spec:
         app.kubernetes.io/component: consumer
       # 이미지 변경 없이 Pod 템플릿만 바꿔 블루-그린 배포를 일으킨다. 테스트 회차마다 값을 바꾼다.
       annotations:
-        dangcharge/test-run: bg-01
+        dangcharge/test-run: bg-02
     spec:
       automountServiceAccountToken: false
       # TODO: 진행 중 이벤트 완료·offset 기록·listener 종료 시간에 맞춰 조정.
