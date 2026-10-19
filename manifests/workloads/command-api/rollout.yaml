@@ -35,7 +35,7 @@ spec:
         app.kubernetes.io/component: producer
       # 이미지 변경 없이 Pod 템플릿만 바꿔 블루-그린 배포를 일으킨다. 테스트 회차마다 값을 바꾼다.
       annotations:
-        dangcharge/test-run: bg-02
+        dangcharge/test-run: bg-10
     spec:
       # 앱에서 Kubernetes API를 사용하지 않으므로 토큰 자동 마운트를 끈다.
       automountServiceAccountToken: false
