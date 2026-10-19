@@ -9,7 +9,7 @@ spec:
     # TODO: 노드 사양에 맞춰 한도 확정
     requests.cpu: "4"
     requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 26Gi
     pods: "30"
     persistentvolumeclaims: "4"
