@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: query-api
     app.kubernetes.io/component: consumer
 spec:
-  replicas: 1
+  replicas: 3
   revisionHistoryLimit: 3
   # TODO: 앱 시작·MongoDB 연결 시간을 실측해 조정.
   progressDeadlineSeconds: 600
